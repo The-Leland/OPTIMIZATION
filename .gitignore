@@ -1,0 +1,7 @@
+
+__pycache__/
+.env
+pipfile.lock
+db.sqlite3
+
+

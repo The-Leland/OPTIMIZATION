@@ -1,6 +1,5 @@
 
 
-
 from flask import request, jsonify
 from sqlalchemy import select, insert, update, delete
 from db import session
@@ -10,11 +9,13 @@ import uuid
 def create_category():
     data = request.get_json()
     category_id = str(uuid.uuid4())
-
-    stmt = insert(Category).values(
-        category_id=category_id,
-        category_name=data['category_name']
-    )
+    values = {
+        col.name: data.get(col.name)
+        for col in Category.c
+        if col.name in data
+    }
+    values['category_id'] = category_id
+    stmt = insert(Category).values(**values)
     session.execute(stmt)
     session.commit()
     return jsonify({"message": "Category created", "category_id": category_id}), 201
@@ -33,7 +34,12 @@ def get_category_by_id(category_id):
 
 def update_category(category_id):
     data = request.get_json()
-    stmt = update(Category).where(Category.c.category_id == category_id).values(**data)
+    values = {
+        col.name: data.get(col.name)
+        for col in Category.c
+        if col.name in data
+    }
+    stmt = update(Category).where(Category.c.category_id == category_id).values(**values)
     session.execute(stmt)
     session.commit()
     return jsonify({"message": "Category updated"}), 200

@@ -1,5 +1,4 @@
 
-
 from flask import request, jsonify
 from sqlalchemy import select, insert, update, delete
 from db import session
@@ -9,12 +8,13 @@ import uuid
 def create_warranty():
     data = request.get_json()
     warranty_id = str(uuid.uuid4())
-
-    stmt = insert(Warranty).values(
-        warranty_id=warranty_id,
-        product_id=data['product_id'],
-        warranty_months=data['warranty_months']
-    )
+    values = {
+        col.name: data.get(col.name)
+        for col in Warranty.c
+        if col.name in data
+    }
+    values['warranty_id'] = warranty_id
+    stmt = insert(Warranty).values(**values)
     session.execute(stmt)
     session.commit()
     return jsonify({"message": "Warranty created", "warranty_id": warranty_id}), 201
@@ -28,7 +28,12 @@ def get_warranty_by_id(warranty_id):
 
 def update_warranty(warranty_id):
     data = request.get_json()
-    stmt = update(Warranty).where(Warranty.c.warranty_id == warranty_id).values(**data)
+    values = {
+        col.name: data.get(col.name)
+        for col in Warranty.c
+        if col.name in data
+    }
+    stmt = update(Warranty).where(Warranty.c.warranty_id == warranty_id).values(**values)
     session.execute(stmt)
     session.commit()
     return jsonify({"message": "Warranty updated"}), 200
