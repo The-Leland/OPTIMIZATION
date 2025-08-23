@@ -1,10 +1,10 @@
 
 
 
-from db import metadata
-
-Product = metadata.tables['products']
-Company = metadata.tables['companies']
-Category = metadata.tables['categories']
-Warranty = metadata.tables['warranties']
-ProductCategoryXref = metadata.tables['products_categories_xref']
+def populate_object(obj, data_dictionary):
+    for field in data_dictionary.keys():
+        try:
+            getattr(obj, field)
+            setattr(obj, field, data_dictionary[field])
+        except AttributeError:
+            continue

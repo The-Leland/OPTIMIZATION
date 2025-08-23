@@ -1,12 +1,13 @@
 
 
 
-from flask_marshmallow import Marshmallow
-from models.categories import Category
-
-ma = Marshmallow()
+from extensions import ma
+from models.categories import Categories
 
 class CategorySchema(ma.SQLAlchemyAutoSchema):
     class Meta:
-        model = Category
+        model = Categories
         load_instance = True
+
+category_schema = CategorySchema()
+categories_schema = CategorySchema(many=True)

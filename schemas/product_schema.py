@@ -1,13 +1,14 @@
 
 
 
-from flask_marshmallow import Marshmallow
-from models.products import Product
-
-ma = Marshmallow()
+from extensions import ma
+from models.products import Products
 
 class ProductSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
-        model = Product
+        model = Products
         include_relationships = True
         load_instance = True
+
+product_schema = ProductSchema()
+products_schema = ProductSchema(many=True)

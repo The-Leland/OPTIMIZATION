@@ -1,13 +1,12 @@
 
 
-from flask_marshmallow import Marshmallow
-from models.companies import Company
-
-ma = Marshmallow()
+from extensions import ma
+from models.companies import Companies
 
 class CompanySchema(ma.SQLAlchemyAutoSchema):
     class Meta:
-        model = Company
+        model = Companies
         load_instance = True
 
-
+company_schema = CompanySchema()
+companies_schema = CompanySchema(many=True)

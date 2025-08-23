@@ -1,14 +1,13 @@
 
 
 
-from flask_marshmallow import Marshmallow
-from models.warranties import Warranty
-
-ma = Marshmallow()
+from extensions import ma
+from models.warranties import Warranties
 
 class WarrantySchema(ma.SQLAlchemyAutoSchema):
     class Meta:
-        model = Warranty
+        model = Warranties
         load_instance = True
 
-
+warranty_schema = WarrantySchema()
+warranties_schema = WarrantySchema(many=True)

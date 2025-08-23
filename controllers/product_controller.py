@@ -1,53 +1,100 @@
 
 
-from flask import jsonify
-from sqlalchemy import select, join
+from flask import jsonify, request
 from db import session
-from util.reflection import Product, Warranty, ProductCategoryXref, Category
+from util.reflection import populate_object
+from models.products import Products, product_schema, products_schema
+from models.warranties import Warranties, warranty_schema
+from models.categories import Categories, category_schema
+from models.product_category_xref import ProductCategoryXref
 
 def get_all_products():
-    stmt = select(Product)
-    products = session.execute(stmt).fetchall()
-
+    products = session.query(Products).all()
     results = []
-    for row in products:
-        product = row._mapping
-        product_dict = {
-            col.name: product[col.name]
-            for col in Product.c
-            if col.name in product
-        }
 
-        warranty_row = session.execute(
-            select(Warranty).where(Warranty.c.product_id == product_dict['product_id'])
-        ).first()
-        if warranty_row:
-            warranty = warranty_row._mapping
-            warranty_dict = {
-                col.name: warranty[col.name]
-                for col in Warranty.c
-                if col.name in warranty
-            }
-            product_dict["warranty"] = warranty_dict
+    for product in products:
+        product_dict = product_schema.dump(product)
 
-        category_joins = (
-            select(Category)
-            .select_from(
-                join(ProductCategoryXref, Category,
-                     ProductCategoryXref.c.category_id == Category.c.category_id)
-            )
-            .where(ProductCategoryXref.c.product_id == product_dict['product_id'])
+        warranty = session.query(Warranties).filter(Warranties.product_id == product.product_id).first()
+        if warranty:
+            product_dict['warranty'] = warranty_schema.dump(warranty)
+
+        # Fetch categories via the association table
+        categories = (
+            session.query(Categories)
+            .join(ProductCategoryXref, Categories.category_id == ProductCategoryXref.category_id)
+            .filter(ProductCategoryXref.product_id == product.product_id)
+            .all()
         )
-        category_rows = session.execute(category_joins).fetchall()
-        product_dict["categories"] = [
-            {
-                col.name: category[col.name]
-                for col in Category.c
-                if col.name in category
-            }
-            for category in [row._mapping for row in category_rows]
-        ]
+        product_dict['categories'] = categories_schema.dump(categories)
 
         results.append(product_dict)
 
     return jsonify(results), 200
+
+def get_product_by_id(product_id):
+    product = session.query(Products).filter(Products.product_id == product_id).first()
+    if not product:
+        return jsonify({"message": "Product not found"}), 404
+
+    product_dict = product_schema.dump(product)
+
+    warranty = session.query(Warranties).filter(Warranties.product_id == product.product_id).first()
+    if warranty:
+        product_dict['warranty'] = warranty_schema.dump(warranty)
+
+    categories = (
+        session.query(Categories)
+        .join(ProductCategoryXref, Categories.category_id == ProductCategoryXref.category_id)
+        .filter(ProductCategoryXref.product_id == product.product_id)
+        .all()
+    )
+    product_dict['categories'] = categories_schema.dump(categories)
+
+    return jsonify(product_dict), 200
+
+def create_product():
+    data = request.get_json()
+    product = Products()
+    populate_object(product, data)
+
+    session.add(product)
+    try:
+        session.commit()
+    except:
+        session.rollback()
+        return jsonify({"message": "Unable to create product"}), 400
+
+    return jsonify({"message": "Product created", "product": product_schema.dump(product)}), 201
+
+def update_product_by_id(product_id):
+    product = session.query(Products).filter(Products.product_id == product_id).first()
+    if not product:
+        return jsonify({"message": "Product not found"}), 404
+
+    data = request.get_json()
+    populate_object(product, data)
+
+    try:
+        session.commit()
+    except:
+        session.rollback()
+        return jsonify({"message": "Unable to update product"}), 400
+
+    return jsonify({"message": "Product updated", "product": product_schema.dump(product)}), 200
+
+def delete_product(product_id):
+    product = session.query(Products).filter(Products.product_id == product_id).first()
+    if not product:
+        return jsonify({"message": "Product not found"}), 404
+
+    try:
+        session.query(ProductCategoryXref).filter(ProductCategoryXref.product_id == product_id).delete()
+        session.query(Warranties).filter(Warranties.product_id == product_id).delete()
+        session.delete(product)
+        session.commit()
+    except:
+        session.rollback()
+        return jsonify({"message": "Unable to delete product"}), 400
+
+    return jsonify({"message": "Product and related records deleted"}), 200
